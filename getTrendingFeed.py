@@ -1,43 +1,65 @@
 from TiktokApi import *
-
+from tqdm import tqdm
+import pandas as pd
 Api = Tiktok()
 
 
 Api.openBrowser()
 
-limit = 40
+limit = 1000000
 count = 0
 first = True
 flag = 0
-while True:
-    data = Api.getTrendingFeed(first=first)
-    if first == True:
-        for x in data['ItemModule']:
-        
-            video_id = data['ItemModule'][x]['id']
-            caption = data['ItemModule'][x]['desc']
-            print("Video <<%s>> <<%s>>" % (str(video_id), str(caption)))
 
-            count += 1
-            if count == limit:
-                flag = 1
-                break
-    else:
-        for x in data['itemList']:
+hashtags = []
+with tqdm(total=limit) as pbar:
+    while True:
+        data = Api.getTrendingFeed(first=first)
+        if first == True:
+            for x in data['ItemModule']:
+                if 'challenges' in x:
+                    for challenge in x['challenges']:
+                        if 'title' in challenge:
+                            hashtags.append(['#' + challenge['title'], 'tiktok'])
+                pbar.update(1)
 
-            caption = str(x['desc'])
-            video_id = str(x['id'])
-            print("Video <<%s>> <<%s>>" % (str(video_id), str(caption)))
+                
+                if count > 0 and (count % 10000 == 0):
+                    df = pd.DataFrame(hashtags, columns=['hashtag','platform', 'lang'])
+                    df = df.drop_duplicates()
+                    df.to_csv(f'tiktok-{count}.csv', index=False, encoding='utf-16', sep='\t')
 
-            count += 1
-            if count == limit:
-                flag = 1
-                break
-    if flag == 1:
-        break
-    first = False
+                count += 1
+                if count == limit:
+                    flag = 1
+                    break
+        else:
+            if 'itemList' in data:
+                for x in data['itemList']:
 
+                    if 'challenges' in x:
+                        for challenge in x['challenges']:
+                            if 'title' in challenge:
+                                hashtags.append(['#' + challenge['title'], 'tiktok', 'vi'])
+                    pbar.update(1)
 
+                    if count > 0 and (count % 10000 == 0):
+                        df = pd.DataFrame(hashtags, columns=['hashtag','platform', 'lang'])
+                        df = df.drop_duplicates()
+                        df.to_csv(f'tiktok-{count}.csv', index=False, encoding='utf-16', sep='\t')
+
+                    count += 1
+                    if count == limit:
+                        flag = 1
+                        break
+        if flag == 1:
+            break
+        first = False
+
+       
+
+df = pd.DataFrame(hashtags, columns=['hashtag','platform', 'lang'])
+df = df.drop_duplicates()
+df.to_csv(f'tiktok-{count}.csv', index=False, encoding='utf-16', sep='\t')
 
 Api.closeBrowser()
-
